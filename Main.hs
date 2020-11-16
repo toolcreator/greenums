@@ -4,7 +4,6 @@
 
 
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 
 
 module Main where
@@ -14,7 +13,7 @@ module Main where
 import Control.Exception (IOException, catch)
 import System.Environment (getArgs)
 
--- bytestring)
+-- bytestring
 import qualified Data.ByteString.Lazy  as B
 import qualified Data.ByteString.Lazy.Char8 as C
 
@@ -33,7 +32,7 @@ import qualified Data.Time as T
 -- word8
 import Data.Word8 (_semicolon)
 
--- containers
+-- unordered-containers
 import qualified Data.HashMap.Strict as HM
 
 
@@ -61,16 +60,25 @@ decodeTransactions :: B.ByteString -> Either String (Vector Transaction)
 decodeTransactions = fmap snd . decodeByNameWith (DecodeOptions _semicolon)
 
 decodeTransactionsFromFile :: FilePath -> IO (Either String (Vector Transaction))
-decodeTransactionsFromFile filePath = catchShowIO (C.readFile filePath)
-                                      >>= return . either Left decodeTransactions
+decodeTransactionsFromFile filePath = catchShowIO (C.readFile filePath) >>= (return . either Left decodeTransactions)
 
 catchShowIO :: IO a -> IO (Either String a)
 catchShowIO action = fmap Right action `catch` handleIOException where
                       handleIOException :: IOException -> IO (Either String a)
                       handleIOException = return . Left . show
 
+data MonthInYear = MonthInYear {
+  month :: Int,
+  year :: Int
+} deriving (Show, Eq)
+
+type MonthlySums = HM.HashMap MonthInYear Float
+
+aggregateTransactions :: Vector Transaction -> MonthlySums
+aggregateTransactions transactions = undefined -- TODO HM.fromList [(MonthInYear m y, s) | ]
+
 main :: IO ()
 main = do [filename] <- getArgs
-          records <- decodeTransactionsFromFile filename
-          print records
-
+          transactions <- decodeTransactionsFromFile filename
+          let monthlySums = either (const Nothing) (Just . aggregateTransactions) transactions
+          print monthlySums
