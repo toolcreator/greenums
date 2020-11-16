@@ -12,6 +12,7 @@ module Main where
 -- base
 import Control.Exception (IOException, catch)
 import System.Environment (getArgs)
+import Data.Maybe (fromMaybe)
 
 -- bytestring
 import qualified Data.ByteString.Lazy  as B
@@ -40,6 +41,10 @@ import Data.Hashable
 
 -- extra
 import Data.Tuple.Extra
+import Numeric.Extra
+
+-- interactive-plot
+import Interactive.Plot
 
 
 data Transaction = Transaction {
@@ -85,17 +90,17 @@ type MonthlySums = HM.HashMap MonthInYear Float
 
 aggregateTransactions :: Vector Transaction -> MonthlySums
 aggregateTransactions transactions = HM.fromList [(MonthInYear m y, s) |
-  let transactionList = toList transactions,
-  let gregorianDay = T.toGregorian . day,
-  let year = fst3 . gregorianDay,
-  let month = snd3 . gregorianDay,
+    let transactionList = toList transactions,
+    let gregorianDay = T.toGregorian . day,
+    let year = fst3 . gregorianDay,
+    let month = snd3 . gregorianDay,
 
-  let years = map year transactionList,
-  let months = map month transactionList,
+    let years = map year transactionList,
+    let months = map month transactionList,
 
-  y <- spne years,
-  m <- spne months,
-  let s = sum [amount t | t <- transactionList, y == year t, m == month t]
+    y <- spne years,
+    m <- spne months,
+    let s = sum [amount t | t <- transactionList, y == year t, m == month t]
   ] where
     -- Sequentially Pairwise Not Equal, i.e., no two neighbours in the resulting list are the same
     spne :: Eq a => [a] -> [a]
@@ -110,4 +115,10 @@ main :: IO ()
 main = do [filename] <- getArgs
           transactions <- decodeTransactionsFromFile filename
           let monthlySums = either (const Nothing) (Just . aggregateTransactions) transactions
-          print monthlySums
+          let plotData = [(x :: Double, y :: Double) |
+                  m <- maybe [] HM.keys monthlySums,
+                  let x = fromIntegral (year m) + fromIntegral (month m) / 12.0 :: Double,
+                  let y = floatToDouble (fromMaybe 0 (maybe (Just 0) (HM.lookup m) monthlySums))
+                ]
+          let plotSeries = tupleSeries plotData mempty
+          runPlotAuto defaultPlotOpts Nothing [plotSeries]
