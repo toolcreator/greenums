@@ -21,7 +21,7 @@ import qualified Data.ByteString.Lazy.Char8 as C
 import qualified Data.ByteString.Lazy.Search as S
 
 -- vector
-import Data.Vector (Vector)
+import Data.Vector (Vector, toList)
 
 -- cassava
 import Data.Csv
@@ -34,6 +34,12 @@ import Data.Word8 (_semicolon)
 
 -- unordered-containers
 import qualified Data.HashMap.Strict as HM
+
+-- hashable
+import Data.Hashable
+
+-- extra
+import Data.Tuple.Extra
 
 
 data Transaction = Transaction {
@@ -69,13 +75,36 @@ catchShowIO action = fmap Right action `catch` handleIOException where
 
 data MonthInYear = MonthInYear {
   month :: Int,
-  year :: Int
+  year :: Integer
 } deriving (Show, Eq)
+
+instance Hashable MonthInYear where
+  hashWithSalt s (MonthInYear m y) = s `hashWithSalt` m `hashWithSalt` y `hashWithSalt` m
 
 type MonthlySums = HM.HashMap MonthInYear Float
 
 aggregateTransactions :: Vector Transaction -> MonthlySums
-aggregateTransactions transactions = undefined -- TODO HM.fromList [(MonthInYear m y, s) | ]
+aggregateTransactions transactions = HM.fromList [(MonthInYear m y, s) |
+  let transactionList = toList transactions,
+  let gregorianDay = T.toGregorian . day,
+  let year = fst3 . gregorianDay,
+  let month = snd3 . gregorianDay,
+
+  let years = map year transactionList,
+  let months = map month transactionList,
+
+  y <- spne years,
+  m <- spne months,
+  let s = sum [amount t | t <- transactionList, y == year t, m == month t]
+  ] where
+    -- Sequentially Pairwise Not Equal, i.e., no two neighbours in the resulting list are the same
+    spne :: Eq a => [a] -> [a]
+    spne xs = _spne [] xs where
+      _spne :: Eq a => [a] -> [a] -> [a]
+      _spne [] (x:xs) = x : _spne [x] xs
+      _spne res [] = res
+      _spne res xs = res' ++ _spne res' (tail xs) where
+        res' = res ++ [head xs | last res /= head xs]
 
 main :: IO ()
 main = do [filename] <- getArgs
