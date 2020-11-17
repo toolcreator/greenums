@@ -13,6 +13,7 @@ module Main where
 import Control.Exception (IOException, catch)
 import System.Environment (getArgs)
 import Data.Maybe (fromMaybe)
+import Data.List (sortBy)
 
 -- bytestring
 import qualified Data.ByteString.Lazy  as B
@@ -44,7 +45,10 @@ import Data.Tuple.Extra
 import Numeric.Extra
 
 -- interactive-plot
-import Interactive.Plot
+import Graphics.Dynamic.Plot.R2
+
+-- color
+import qualified Data.Colour.Names as Color
 
 
 data Transaction = Transaction {
@@ -111,14 +115,15 @@ aggregateTransactions transactions = HM.fromList [(MonthInYear m y, s) |
       _spne res xs = res' ++ _spne res' (tail xs) where
         res' = res ++ [head xs | last res /= head xs]
 
-main :: IO ()
 main = do [filename] <- getArgs
           transactions <- decodeTransactionsFromFile filename
           let monthlySums = either (const Nothing) (Just . aggregateTransactions) transactions
-          let plotData = [(x :: Double, y :: Double) |
+          let plotData = sortBy (\(a,_) (b,_) -> compare a b)
+                [(x :: Double, y :: Double) |
                   m <- maybe [] HM.keys monthlySums,
                   let x = fromIntegral (year m) + fromIntegral (month m) / 12.0 :: Double,
-                  let y = floatToDouble (fromMaybe 0 (maybe (Just 0) (HM.lookup m) monthlySums))
+                  let y = floatToDouble $ fromMaybe 0 $ maybe (Just 0) (HM.lookup m) monthlySums
                 ]
-          let plotSeries = tupleSeries plotData mempty
-          runPlotAuto defaultPlotOpts Nothing [plotSeries]
+          let total = sum [snd p | p <- plotData]
+          let plot =  tint (if total >= 0 then Color.green else Color.red) $ lineSegPlot plotData
+          plotWindow [plot]
