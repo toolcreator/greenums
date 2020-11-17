@@ -51,8 +51,21 @@ import Graphics.Dynamic.Plot.R2
 import qualified Data.Colour.Names as Color
 
 
+data MonthInYear = MonthInYear {
+  year :: Integer,
+  month :: Int
+} deriving (Show, Eq)
+
+instance FromField MonthInYear where
+  parseField field = do t <- T.parseTimeM True T.defaultTimeLocale "%d.%m.%Y" $ C.unpack $ B.fromStrict field
+                        let g = T.toGregorian t
+                        return (MonthInYear (fst3 g) (snd3 g))
+
+instance Hashable MonthInYear where
+  hashWithSalt s (MonthInYear m y) = s `hashWithSalt` m `hashWithSalt` y `hashWithSalt` m
+
 data Transaction = Transaction {
-  day :: T.Day,
+  monthInYear :: MonthInYear,
   amount :: Float
 } deriving (Show, Eq)
 instance FromNamedRecord Transaction where
@@ -68,9 +81,6 @@ instance FromNamedRecord Transaction where
                                 read $ C.unpack $ S.replace "," ("." :: B.ByteString) str :: Float
                               )
 
-instance FromField T.Day where
-  parseField = T.parseTimeM True T.defaultTimeLocale "%d.%m.%Y" . C.unpack . B.fromStrict
-
 decodeTransactions :: B.ByteString -> Either String (Vector Transaction)
 decodeTransactions = fmap snd . decodeByNameWith (DecodeOptions _semicolon)
 
@@ -82,29 +92,20 @@ catchShowIO action = fmap Right action `catch` handleIOException where
                       handleIOException :: IOException -> IO (Either String a)
                       handleIOException = return . Left . show
 
-data MonthInYear = MonthInYear {
-  month :: Int,
-  year :: Integer
-} deriving (Show, Eq)
-
-instance Hashable MonthInYear where
-  hashWithSalt s (MonthInYear m y) = s `hashWithSalt` m `hashWithSalt` y `hashWithSalt` m
-
 type MonthlySums = HM.HashMap MonthInYear Float
 
 aggregateTransactions :: Vector Transaction -> MonthlySums
-aggregateTransactions transactions = HM.fromList [(MonthInYear m y, s) |
+aggregateTransactions transactions = HM.fromList [(MonthInYear y m, s) |
     let transactionList = toList transactions,
-    let gregorianDay = T.toGregorian . day,
-    let year = fst3 . gregorianDay,
-    let month = snd3 . gregorianDay,
+    let _year = year . monthInYear,
+    let _month = month . monthInYear,
 
-    let years = map year transactionList,
-    let months = map month transactionList,
+    let ys = map _year transactionList,
+    let ms = map _month transactionList,
 
-    y <- spne years,
-    m <- spne months,
-    let s = sum [amount t | t <- transactionList, y == year t, m == month t]
+    y <- spne ys,
+    m <- spne ms,
+    let s = sum [amount t | t <- transactionList, y == _year t, m == _month t]
   ] where
     -- Sequentially Pairwise Not Equal, i.e., no two neighbours in the resulting list are the same
     spne :: Eq a => [a] -> [a]
