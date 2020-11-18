@@ -14,6 +14,7 @@ import Control.Exception (IOException, catch)
 import System.Environment (getArgs)
 import Data.Maybe (fromMaybe)
 import Data.List (sortBy)
+import Control.Applicative (empty)
 
 -- bytestring
 import qualified Data.ByteString.Lazy  as B
@@ -73,12 +74,10 @@ instance FromNamedRecord Transaction where
                         <$> m .: "Buchungstag"
                         <*> parseAmount m where
                           parseAmount :: NamedRecord -> Parser Float
-                          parseAmount m = maybe zero (parseGerFloat . B.fromStrict) amountStr where
-                            zero = return 0
-                            amountStr = HM.lookup "Betrag" m
+                          parseAmount m = maybe empty (parseGerFloat . B.fromStrict) (HM.lookup "Betrag" m) where
                             parseGerFloat :: B.ByteString -> Parser Float
                             parseGerFloat str = return (
-                                read $ C.unpack $ S.replace "," ("." :: B.ByteString) str :: Float
+                              read $ C.unpack $ S.replace "," ("." :: B.ByteString) str :: Float
                               )
 
 decodeTransactions :: B.ByteString -> Either String (Vector Transaction)
@@ -103,8 +102,7 @@ aggregateTransactions transactions = HM.fromList [(MonthInYear y m, s) |
     let ys = map _year transactionList,
     let ms = map _month transactionList,
 
-    y <- spne ys,
-    m <- spne ms,
+    (y, m) <- spne $ zip ys ms,
     let s = sum [amount t | t <- transactionList, y == _year t, m == _month t]
   ] where
     -- Sequentially Pairwise Not Equal, i.e., no two neighbours in the resulting list are the same
@@ -127,4 +125,5 @@ main = do [filename] <- getArgs
                 ]
           let total = sum [snd p | p <- plotData]
           let plot =  tint (if total >= 0 then Color.green else Color.red) $ lineSegPlot plotData
+          print plotData
           plotWindow [plot]
