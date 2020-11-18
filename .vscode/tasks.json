@@ -15,8 +15,6 @@
       "command": "${workspaceFolder}/dist-newstyle/build/x86_64-linux/ghc-8.8.4/greenums-0.1.0.0/x/greenums/build/greenums/greenums",
       "args": [
         "data.csv",
-        "+RTS",
-        "-p"
       ],
       "options": {
         "cwd": "${workspaceFolder}"

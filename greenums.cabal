@@ -31,6 +31,6 @@ executable greenums
                        extra,
                        dynamic-plot,
                        colour
-  ghc-options: -threaded -prof -fprof-auto
+  ghc-options: -threaded
   -- hs-source-dirs:
   default-language:    Haskell2010
