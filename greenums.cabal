@@ -3,7 +3,7 @@ cabal-version:       >=1.10
 --   For further documentation, see http://haskell.org/cabal/users-guide/
 
 name:                greenums
-version:             0.1.0.0
+version:             1.0.0.0
 -- synopsis:
 -- description:
 -- bug-reports:
@@ -30,7 +30,8 @@ executable greenums
                        hashable,
                        extra,
                        dynamic-plot,
-                       colour
+                       colour,
+                       optparse-applicative
   ghc-options: -threaded
   -- hs-source-dirs:
   default-language:    Haskell2010
