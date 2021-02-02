@@ -65,7 +65,7 @@ instance FromField MonthInYear where
 
 instance Hashable MonthInYear where
   hashWithSalt s (MonthInYear y m) = s `hashWithSalt` y `hashWithSalt` m
-  
+
 data Transaction = Transaction {
   monthInYear :: MonthInYear,
   amount :: Float
@@ -119,7 +119,7 @@ aggregateTransactions sy sm transactions = HM.fromList [(MonthInYear y m, s) |
     let s = sum [amount t | t <- transactionList, y == _year t, m == _month t]] where
     -- predicate for transaction to be younger than (sy, sm)
     agePred :: (Integer, Int) -> Bool
-    agePred (y, m) = y >= sy && m >= sm
+    agePred (y, m) = y >= sy && (y > sy || m >= sm)
     -- Sequentially Pairwise Not Equal, i.e., no two neighbours in the resulting list are the same
     spne :: Eq a => [a] -> [a]
     spne xs = _spne [] xs where
@@ -140,7 +140,23 @@ greenums (Options filename sy sm) = do
                         ]
   let total = sum [snd p | p <- plotData]
   let plot =  tint (if total >= 0 then Color.green else Color.red) $ lineSegPlot plotData
-  print plotData
+  print $ map (\(date, amount) -> let (ystr, mstr) =
+                                        let (y, m) = (floor date :: Int, round $ 12.0 * (date - fromIntegral y))
+                                        in (show $ if m == 0 then y - 1 else y, case m of
+                                                                                  0  -> "Dec"
+                                                                                  1  -> "Jan"
+                                                                                  2  -> "Feb"
+                                                                                  3  -> "Mar"
+                                                                                  4  -> "Apr"
+                                                                                  5  -> "May"
+                                                                                  6  -> "Jun"
+                                                                                  7  -> "Jul"
+                                                                                  8  -> "Aug"
+                                                                                  9  -> "Sep"
+                                                                                  10 -> "Oct"
+                                                                                  11 -> "Nov"
+                                           )
+                                  in (mstr ++ " " ++ ystr, amount)) plotData
   plotWindow [plot]
 
 main = execParser opts >>= greenums where

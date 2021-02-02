@@ -1,4 +1,4 @@
 dist-newstyle
-data.csv
+data*.csv
 *.prof
 *.prof.old
