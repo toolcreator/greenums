@@ -11,5 +11,6 @@ steps:
     settings:
       branch: main
       remote: git@github.com:toolcreator/greenums.git
+      followtags: true
       ssh_key:
         from_secret: ssh_key
